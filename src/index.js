@@ -5,26 +5,38 @@ const { WebClient } = require('@slack/web-api');
 
 const web = new WebClient(CONFIG.slackToken);
 
+let yesterday = new Date();
+
 const smartStoreJob = new CronJob(CONFIG.cronString, () => {
     const crawler = new Crawler({
         maxConnections: 1,
         rateLimit: 2000,
         callback: (err, res, done) => {
+            const currentTime = new Date();
             if (err) {
                 console.error(err);
             } else {
                 const $ = res.$;
                 console.log($("title").text());
-                console.log(`구매가능?`, $("div._2QCa6wHHPy").find("div.XqRGHcrncz").text());
+                console.log(`[${currentTime.toUTCString()}] 구매가능?`, $("div._2QCa6wHHPy").find("div.XqRGHcrncz").text());
                 if ($("div._2QCa6wHHPy").find("div.XqRGHcrncz").children().length === 2) {
-                    console.log("구매 가능!");
+                    console.log("[${currentTime.toUTCString()}] 구매 가능!");
                     web.chat.postMessage({
                         channel: 'shopping-alarm',
                         mrkdwn: true,
                         text: `스마트 스토어 상품이 구매 가능 상태로 변경되었습니다! 고고고! => ${CONFIG.smartStoreTarget}`
-                    })
+                    });
                 } else {
-                    console.log("구매 불가 ㅜㅜ")
+                    console.log("구매 불가 ㅜㅜ");
+                    if (currentTime - yesterday > 1000 * 60 * 60 * 6) {
+                        console.log(`[${currentTime.toUTCString()}] 6시간이 지났습니다.`)
+                        yesterday = currentTime;
+                        web.chat.postMessage({
+                            channel: 'shopping-alarm',
+                            mrkdwn: true,
+                            text: `스마트 스토어 상품을 계속 추적중입니다. 아직 구매 불가해요 ㅠㅠ => ${CONFIG.smartStoreTarget}`
+                        });
+                    }
                 }
             }
             done();
