@@ -5,14 +5,16 @@ const { WebClient } = require('@slack/web-api');
 
 const web = new WebClient(CONFIG.slackToken);
 
-let yesterday = new Date();
+let lastRefernceTime;
 
 const smartStoreJob = new CronJob(CONFIG.cronString, () => {
     const crawler = new Crawler({
         maxConnections: 1,
-        rateLimit: 2000,
         callback: (err, res, done) => {
             const currentTime = new Date();
+            if (!lastRefernceTime) {
+                lastRefernceTime = currentTime;
+            }
             if (err) {
                 console.error(err);
             } else {
@@ -28,9 +30,9 @@ const smartStoreJob = new CronJob(CONFIG.cronString, () => {
                     });
                 } else {
                     console.log("구매 불가 ㅜㅜ");
-                    if (currentTime - yesterday > 1000 * 60 * 60 * 6) {
+                    if (currentTime - lastRefernceTime > 1000 * 60 * 60 * 2) {
                         console.log(`[${currentTime.toUTCString()}] 6시간이 지났습니다.`)
-                        yesterday = currentTime;
+                        lastRefernceTime = currentTime;
                         web.chat.postMessage({
                             channel: 'shopping-alarm',
                             mrkdwn: true,
@@ -77,3 +79,10 @@ const lotteOnJob = new CronJob(CONFIG.cronString, () => {
 
 smartStoreJob.start();
 // lotteOnJob.start();
+
+console.log(`[${(new Date()).toUTCString()}] 스마트스토어 트래킹 시작`);
+web.chat.postMessage({
+    channel: 'shopping-alarm',
+    mrkdwn: true,
+    text: `스마트 스토어 상품을 추적을 시작했습니다! => ${CONFIG.smartStoreTarget}`
+});
